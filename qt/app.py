@@ -24,7 +24,7 @@ import core.pe.photo
 from . import platform
 from .preferences import Preferences
 from .result_window import ResultWindow
-from .directories_dialog import DirectoriesDialog
+# from .directories_dialog import DirectoriesDialog
 from .problem_dialog import ProblemDialog
 from .ignore_list_dialog import IgnoreListDialog
 from .deletion_options import DeletionOptions
@@ -35,6 +35,7 @@ from .se.preferences_dialog import PreferencesDialog as PreferencesDialogStandar
 from .me.preferences_dialog import PreferencesDialog as PreferencesDialogMusic
 from .pe.preferences_dialog import PreferencesDialog as PreferencesDialogPicture
 from .pe.photo import File as PlatSpecificPhoto
+from .tabbed_window import TabWindow
 
 tr = trget("ui")
 
@@ -59,22 +60,23 @@ class DupeGuru(QObject):
         self.recentResults.mustOpenItem.connect(self.model.load_from)
         self.resultWindow = None
         self.details_dialog = None
-        self.directories_dialog = DirectoriesDialog(self)
+        # self.directories_dialog = DirectoriesDialog(self)
+        self.main_window = TabWindow(self)
         self.progress_window = ProgressWindow(
-            self.directories_dialog, self.model.progress_window
+            self.main_window, self.model.progress_window
         )
         self.problemDialog = ProblemDialog(
-            parent=self.directories_dialog, model=self.model.problem_dialog
+            parent=self.main_window, model=self.model.problem_dialog
         )
         self.ignoreListDialog = IgnoreListDialog(
-            parent=self.directories_dialog, model=self.model.ignore_list_dialog
+            parent=self.main_window, model=self.model.ignore_list_dialog
         )
         self.deletionOptions = DeletionOptions(
-            parent=self.directories_dialog, model=self.model.deletion_options
+            parent=self.main_window, model=self.model.deletion_options
         )
-        self.about_box = AboutBox(self.directories_dialog, self)
+        self.about_box = AboutBox(self.main_window, self)
 
-        self.directories_dialog.show()
+        self.main_window.show()
         self.model.load()
 
         self.SIGTERM.connect(self.handleSIGTERM)
@@ -191,7 +193,10 @@ class DupeGuru(QObject):
 
     def showResultsWindow(self):
         if self.resultWindow is not None:
-            self.resultWindow.show()
+            # self.resultWindow.show()
+            self.main_window.tabwidget.setCurrentIndex(
+                self.main_window.tabwidget.indexOf(self.resultWindow))
+            self.main_window.updateMenuBar()
 
     def shutdown(self):
         self.willSavePrefs.emit()
@@ -212,7 +217,7 @@ class DupeGuru(QObject):
                 "scanning have accented letters, you'll probably get a crash. It is advised that "
                 "you set your system locale properly."
             )
-            QMessageBox.warning(self.directories_dialog, "Wrong Locale", msg)
+            QMessageBox.warning(self.main_window, "Wrong Locale", msg)
 
     def clearPictureCacheTriggered(self):
         title = tr("Clear Picture Cache")
@@ -231,7 +236,7 @@ class DupeGuru(QObject):
 
     def preferencesTriggered(self):
         preferences_dialog = self._get_preferences_dialog_class()(
-            self.directories_dialog, self
+            self.main_window, self
         )
         preferences_dialog.load()
         result = preferences_dialog.exec()
@@ -242,7 +247,7 @@ class DupeGuru(QObject):
         preferences_dialog.setParent(None)
 
     def quitTriggered(self):
-        self.directories_dialog.close()
+        self.main_window.close()
 
     def showAboutBoxTriggered(self):
         self.about_box.show()
@@ -282,8 +287,11 @@ class DupeGuru(QObject):
         if self.resultWindow is not None:
             self.resultWindow.close()
             self.resultWindow.setParent(None)
-        self.resultWindow = ResultWindow(self.directories_dialog, self)
+        self.resultWindow = ResultWindow(self.main_window, self)
+        self.main_window.tabwidget.setUpdatesEnabled(False)
+        self.main_window.tabwidget.addTab(self.resultWindow, "Results")
         self.details_dialog = self._get_details_dialog_class()(self.resultWindow, self)
+        self.main_window.tabwidget.setUpdatesEnabled(True)
 
     def show_results_window(self):
         self.showResultsWindow()

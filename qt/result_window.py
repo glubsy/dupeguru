@@ -222,7 +222,7 @@ class ResultWindow(QMainWindow):
         self.menuView.setTitle(tr("View"))
         self.menuHelp = QMenu(self.menubar)
         self.menuHelp.setTitle(tr("Help"))
-        self.setMenuBar(self.menubar)
+        # self.setMenuBar(self.menubar)
 
         self.menuActions.addAction(self.actionDeleteMarked)
         self.menuActions.addAction(self.actionMoveMarked)

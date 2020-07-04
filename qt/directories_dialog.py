@@ -21,6 +21,7 @@ from PyQt5.QtWidgets import (
     QMenu,
     QLabel,
     QComboBox,
+    QDialog
 )
 from PyQt5.QtGui import QPixmap, QIcon
 
@@ -105,7 +106,7 @@ class DirectoriesDialog(QMainWindow):
         self.menuHelp.setTitle(tr("Help"))
         self.menuLoadRecent = QMenu(self.menuFile)
         self.menuLoadRecent.setTitle(tr("Load Recent Results"))
-        self.setMenuBar(self.menubar)
+        # self.setMenuBar(self.menubar)
 
         self.menuFile.addAction(self.actionLoadResults)
         self.menuFile.addAction(self.menuLoadRecent.menuAction())
