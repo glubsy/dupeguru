@@ -23,10 +23,10 @@ from core.app import AppMode, DupeGuru as DupeGuruModel
 import core.pe.photo
 from . import platform
 from .preferences import Preferences
-from .result_window import ResultWindow
+# from .result_window import ResultWindow
 # from .directories_dialog import DirectoriesDialog
 from .problem_dialog import ProblemDialog
-from .ignore_list_dialog import IgnoreListDialog
+# from .ignore_list_dialog import IgnoreListDialog
 from .deletion_options import DeletionOptions
 from .se.details_dialog import DetailsDialog as DetailsDialogStandard
 from .me.details_dialog import DetailsDialog as DetailsDialogMusic
@@ -62,15 +62,23 @@ class DupeGuru(QObject):
         self.details_dialog = None
         # self.directories_dialog = DirectoriesDialog(self)
         self.main_window = TabWindow(self)
+        self.directories_dialog = self.main_window.createPage("DirectoriesDialog", app=self)
+        self.main_window.addTab(self.directories_dialog, "Directories")
         self.progress_window = ProgressWindow(
             self.main_window, self.model.progress_window
         )
         self.problemDialog = ProblemDialog(
             parent=self.main_window, model=self.model.problem_dialog
         )
-        self.ignoreListDialog = IgnoreListDialog(
-            parent=self.main_window, model=self.model.ignore_list_dialog
-        )
+        # self.ignoreListDialog = IgnoreListDialog(
+        #     parent=self.main_window, model=self.model.ignore_list_dialog
+        # )
+        self.ignoreListDialog = self.main_window.createPage(
+            "IgnoreListDialog",
+            parent=self.main_window,
+            model=self.model.ignore_list_dialog)
+        self.main_window.addTab(self.ignoreListDialog, "Ignore List", False)
+
         self.deletionOptions = DeletionOptions(
             parent=self.main_window, model=self.model.deletion_options
         )
@@ -194,9 +202,10 @@ class DupeGuru(QObject):
     def showResultsWindow(self):
         if self.resultWindow is not None:
             # self.resultWindow.show()
+            self.main_window.addTab(self.resultWindow, "Results(", True)
             self.main_window.tabwidget.setCurrentIndex(
                 self.main_window.tabwidget.indexOf(self.resultWindow))
-            self.main_window.updateMenuBar()
+            # self.main_window.updateMenuBar()
 
     def shutdown(self):
         self.willSavePrefs.emit()
@@ -228,7 +237,14 @@ class DupeGuru(QObject):
             QMessageBox.information(active, title, tr("Picture cache cleared."))
 
     def ignoreListTriggered(self):
-        self.model.ignore_list_dialog.show()
+        # self.model.ignore_list_dialog.show()
+        index = self.main_window.tabwidget.indexOf(self.ignoreListDialog)
+        print(f"ignorelist index: {index}, visible? {self.main_window.tabwidget.isTabVisible(index)}")
+        if index < 0:
+            index = self.main_window.addTab(self.ignoreListDialog, "Ignore List(", True)
+        # if not self.main_window.tabwidget.isTabVisible(index):
+        self.main_window.tabwidget.setTabVisible(index, True)
+        self.main_window.tabwidget.setCurrentIndex(index)
 
     def openDebugLogTriggered(self):
         debugLogPath = op.join(self.model.appdata, "debug.log")
@@ -287,9 +303,11 @@ class DupeGuru(QObject):
         if self.resultWindow is not None:
             self.resultWindow.close()
             self.resultWindow.setParent(None)
-        self.resultWindow = ResultWindow(self.main_window, self)
+        # self.resultWindow = ResultWindow(self.main_window, self)
+        self.resultWindow = self.main_window.createPage(
+            "ResultWindow", parent=self.main_window, app=self)
+        self.main_window.addTab(self.resultWindow, "Results")
         self.main_window.tabwidget.setUpdatesEnabled(False)
-        self.main_window.tabwidget.addTab(self.resultWindow, "Results")
         self.details_dialog = self._get_details_dialog_class()(self.resultWindow, self)
         self.main_window.tabwidget.setUpdatesEnabled(True)
 

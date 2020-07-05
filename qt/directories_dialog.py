@@ -96,14 +96,18 @@ class DirectoriesDialog(QMainWindow):
         createActions(ACTIONS, self)
 
     def _setupMenu(self):
-        self.menubar = QMenuBar(self)
-        self.menubar.setGeometry(QRect(0, 0, 42, 22))
-        self.menuFile = QMenu(self.menubar)
-        self.menuFile.setTitle(tr("File"))
-        self.menuView = QMenu(self.menubar)
-        self.menuView.setTitle(tr("View"))
-        self.menuHelp = QMenu(self.menubar)
-        self.menuHelp.setTitle(tr("Help"))
+        # self.menubar = QMenuBar(self)
+        # self.menubar.setGeometry(QRect(0, 0, 42, 22))
+        # self.menuFile = QMenu(self.menubar)
+        # self.menuFile.setTitle(tr("File"))
+        self.menuFile = self.app.main_window.menuFile
+        # self.menuView = QMenu(self.menubar)
+        # self.menuView.setTitle(tr("View"))
+        self.menuView = self.app.main_window.menuView
+        # self.menuHelp = QMenu(self.menubar)
+        # self.menuHelp.setTitle(tr("Help"))
+        self.menuHelp = self.app.main_window.menuHelp
+
         self.menuLoadRecent = QMenu(self.menuFile)
         self.menuLoadRecent.setTitle(tr("Load Recent Results"))
         # self.setMenuBar(self.menubar)
@@ -121,9 +125,9 @@ class DirectoriesDialog(QMainWindow):
         self.menuHelp.addAction(self.app.actionOpenDebugLog)
         self.menuHelp.addAction(self.app.actionAbout)
 
-        self.menubar.addAction(self.menuFile.menuAction())
-        self.menubar.addAction(self.menuView.menuAction())
-        self.menubar.addAction(self.menuHelp.menuAction())
+        self.app.main_window.menubar.addAction(self.menuFile.menuAction())
+        self.app.main_window.menubar.addAction(self.menuView.menuAction())
+        self.app.main_window.menubar.addAction(self.menuHelp.menuAction())
 
         # Recent folders menu
         self.menuRecentFolders = QMenu()
