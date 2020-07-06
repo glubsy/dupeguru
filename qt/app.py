@@ -78,6 +78,7 @@ class DupeGuru(QObject):
             parent=self.main_window,
             model=self.model.ignore_list_dialog)
         self.main_window.addTab(self.ignoreListDialog, "Ignore List", False)
+        self.ignoreListDialog.accepted.connect(self.main_window.onDialogAccepted)
 
         self.deletionOptions = DeletionOptions(
             parent=self.main_window, model=self.model.deletion_options
@@ -263,6 +264,7 @@ class DupeGuru(QObject):
         preferences_dialog.setParent(None)
 
     def quitTriggered(self):
+        # self.directories_dialog.close()
         self.main_window.close()
 
     def showAboutBoxTriggered(self):

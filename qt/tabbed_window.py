@@ -32,7 +32,7 @@ class TabWindow(QMainWindow):
         self.setWindowTitle(self.app.NAME)
         self.resize(420, 338)
         self.tabwidget = QTabWidget()
-        self.tabwidget.setTabBarAutoHide(True)
+        # self.tabwidget.setTabBarAutoHide(False)
         self.tabwidget.currentChanged.connect(self.updateMenuBar)
         self.tabwidget.tabCloseRequested.connect(self.onTabCloseRequested)
         self.tabwidget.setTabsClosable(True)
@@ -44,21 +44,26 @@ class TabWindow(QMainWindow):
         self.setCentralWidget(self.centralWidget)
         self.updateMenuBar(self.tabwidget.currentIndex())
 
-        if self.app.prefs.mainWindowIsMaximized:
-            self.setWindowState(self.windowState() | Qt.WindowMaximized)
+        # if self.app.prefs.mainWindowIsMaximized:
+        #     self.setWindowState(self.windowState() | Qt.WindowMaximized)
+        # else:
+        #     if self.app.prefs.mainWindowRect is not None:
+        #         self.setGeometry(self.app.prefs.mainWindowRect)
+        #         # if not on any screen move to center of default screen
+        #         # moves to center of closest screen if partially off screen
+        #         frame = self.frameGeometry()
+        #         if QDesktopWidget().screenNumber(self) == -1:
+        #             moveToScreenCenter(self)
+        #         elif QDesktopWidget().availableGeometry(self).contains(frame) is False:
+        #             frame.moveCenter(QDesktopWidget().availableGeometry(self).center())
+        #             self.move(frame.topLeft())
+        #     else:
+        #         moveToScreenCenter(self)
+
+        if self.app.prefs.mainWindowRect is not None:
+            self.setGeometry(self.app.prefs.mainWindowRect)
         else:
-            if self.app.prefs.mainWindowRect is not None:
-                self.setGeometry(self.app.prefs.mainWindowRect)
-                # if not on any screen move to center of default screen
-                # moves to center of closest screen if partially off screen
-                frame = self.frameGeometry()
-                if QDesktopWidget().screenNumber(self) == -1:
-                    moveToScreenCenter(self)
-                elif QDesktopWidget().availableGeometry(self).contains(frame) is False:
-                    frame.moveCenter(QDesktopWidget().availableGeometry(self).center())
-                    self.move(frame.topLeft())
-            else:
-                moveToScreenCenter(self)
+            moveToScreenCenter(self)
 
     def _setupMenu(self):
         self.menubar = QMenuBar()  # self.menuBar()
@@ -112,24 +117,36 @@ class TabWindow(QMainWindow):
 
     # --- Events
     def appWillSavePrefs(self):
+        # Right now this is useless since the first spawn dialog inside the
+        # QTabWidget will assign its geometry after restoring it
         prefs = self.app.prefs
         prefs.mainWindowIsMaximized = self.isMaximized()
         prefs.mainWindowRect = self.geometry()
 
     def closeEvent(self, event):
-        # this saves the location of the results window when it is closed
         self.appWillSavePrefs()
-        # super().closeEvent(event)
+        # Force closing of our tabbed widgets in reverse order
+        for index in range(self.tabwidget.count() - 1, -1, -1):
+            self.tabwidget.widget(index).close()
 
     @pyqtSlot(int)
     def onTabCloseRequested(self, index):
-        # if index != self.tabwidget.currentIndex():
         print(f"close requested on {index} {self.tabwidget.widget(index)}")
-
         # if self.tabwidget.tabBar().currentIndex(index) == self.tabwidget.currentWidget():
-
-        self.tabwidget.setTabVisible(index, False)
+        if isinstance(self.tabwidget.widget(index), DirectoriesDialog):
+            # if we close this one, the application quits,
+            # force user to use the menu or shortcut
+            return
         self.tabwidget.widget(index).close()
+        self.tabwidget.setTabVisible(index, False)
         # self.tabwidget.widget(index).hide()
         self.tabwidget.removeTab(index)
         # self.tabwidget.setCurrentIndex(index -1)
+
+    @pyqtSlot()
+    def onDialogAccepted(self):
+        """Remove tabbed dialog when Accepted/Done."""
+        widget = self.sender()
+        index = self.tabwidget.indexOf(widget)
+        if index > -1:
+            self.tabwidget.removeTab(index)
