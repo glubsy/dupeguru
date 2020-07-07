@@ -109,11 +109,25 @@ class TabWindow(QMainWindow):
 
         print(f"previous widget actions: {self.previous_widget_actions if self.previous_widget_actions else 'empty'}")
 
+        isResultWindow = isinstance(active_widget, ResultWindow)
+
         for menu in self.menuList:
+            if menu is self.menuColumns or menu is self.menuActions or menu is self.menuMark:
+                if not isResultWindow:
+                    menu.setEnabled(False)
+                    continue
+                else:
+                    menu.setEnabled(True)
+
             for action in menu.actions():
                 if action is self.app.directories_dialog.actionShowResultsWindow:
-                    self.app.directories_dialog.actionShowResultsWindow.setEnabled(
-                        self.app.resultWindow is not None)
+                    if isResultWindow:
+                        # Action points to ourselves, always disable it
+                        self.app.directories_dialog.actionShowResultsWindow\
+                            .setEnabled(False)
+                        continue
+                    self.app.directories_dialog.actionShowResultsWindow\
+                        .setEnabled(self.app.resultWindow is not None)
                     continue
                 if action not in active_widget.specific_actions:
                     if action in self.previous_widget_actions:

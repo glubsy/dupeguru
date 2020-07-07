@@ -283,6 +283,10 @@ class ResultWindow(QMainWindow):
 
         # Columns menu
         menu = self.menuColumns
+        # Avoid adding duplicateactions in tab widget menu in case we recreated
+        # the Result window instance.
+        if menu.actions():
+            menu.clear()
         self._column_actions = []
         for index, (display, visible) in enumerate(
             self.app.model.result_table.columns.menu_items()
@@ -292,10 +296,8 @@ class ResultWindow(QMainWindow):
             action.setChecked(visible)
             action.item_index = index
             self._column_actions.append(action)
-            self.specific_actions.add(action)
         menu.addSeparator()
         action = menu.addAction(tr("Reset to Defaults"))
-        self.specific_actions.add(action)
         action.item_index = -1
 
         # Action menu

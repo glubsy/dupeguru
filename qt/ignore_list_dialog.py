@@ -26,7 +26,7 @@ class IgnoreListDialog(QDialog):
     def __init__(self, parent, model, **kwargs):
         flags = Qt.CustomizeWindowHint | Qt.WindowTitleHint | Qt.WindowSystemMenuHint
         super().__init__(parent, flags, **kwargs)
-        self.specific_actions = set()
+        self.specific_actions = frozenset()
         self._setupUi()
         self.model = model
         self.model.view = self
