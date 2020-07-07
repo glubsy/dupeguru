@@ -46,6 +46,8 @@ class TabWindow(QMainWindow):
         self.setCentralWidget(self.centralWidget)
         self.updateMenuBar(self.tabwidget.currentIndex())
 
+        # This is not really working since the geometry of the first tab
+        # (DirectoriesDialog) will restore its geometry and override ours:
         # if self.app.prefs.mainWindowIsMaximized:
         #     self.setWindowState(self.windowState() | Qt.WindowMaximized)
         # else:
@@ -171,11 +173,12 @@ class TabWindow(QMainWindow):
         prefs.mainWindowIsMaximized = self.isMaximized()
         prefs.mainWindowRect = self.geometry()
 
-    def closeEvent(self, event):
-        self.appWillSavePrefs()
-        # Force closing of our tabbed widgets in reverse order
+    def closeEvent(self, close_event):
+        # Force closing of our tabbed widgets in reverse order so that the 
+        # directories dialog (which usually is at index 0) will be called last
         for index in range(self.tabwidget.count() - 1, -1, -1):
-            self.tabwidget.widget(index).close()
+            self.tabwidget.widget(index).closeEvent(close_event)
+        self.appWillSavePrefs()
 
     @pyqtSlot(int)
     def onTabCloseRequested(self, index):

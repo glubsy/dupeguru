@@ -208,9 +208,10 @@ class ResultWindow(QMainWindow):
         self.actionDelta.setCheckable(True)
         self.actionPowerMarker.setCheckable(True)
 
-        # Keep track of actions which should only be accessible from this class
-        for action, _, _, _, _ in ACTIONS:
-            self.specific_actions.add(getattr(self, action))
+        if self.app.main_window:  # We use tab widgets in this case
+            # Keep track of actions which should only be accessible from this class
+            for action, _, _, _, _ in ACTIONS:
+                self.specific_actions.add(getattr(self, action))
 
     def _setupMenu(self):
         if not self.app.main_window:

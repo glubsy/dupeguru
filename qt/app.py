@@ -23,10 +23,10 @@ from core.app import AppMode, DupeGuru as DupeGuruModel
 import core.pe.photo
 from . import platform
 from .preferences import Preferences
-# from .result_window import ResultWindow
-# from .directories_dialog import DirectoriesDialog
+from .result_window import ResultWindow
+from .directories_dialog import DirectoriesDialog
 from .problem_dialog import ProblemDialog
-# from .ignore_list_dialog import IgnoreListDialog
+from .ignore_list_dialog import IgnoreListDialog
 from .deletion_options import DeletionOptions
 from .se.details_dialog import DetailsDialog as DetailsDialogStandard
 from .me.details_dialog import DetailsDialog as DetailsDialogMusic
@@ -35,7 +35,10 @@ from .se.preferences_dialog import PreferencesDialog as PreferencesDialogStandar
 from .me.preferences_dialog import PreferencesDialog as PreferencesDialogMusic
 from .pe.preferences_dialog import PreferencesDialog as PreferencesDialogPicture
 from .pe.photo import File as PlatSpecificPhoto
-from .tabbed_window import TabWindow
+
+TAB_ENABLED = True
+if TAB_ENABLED:
+    from .tabbed_window import TabWindow
 
 tr = trget("ui")
 
@@ -60,32 +63,41 @@ class DupeGuru(QObject):
         self.recentResults.mustOpenItem.connect(self.model.load_from)
         self.resultWindow = None
         self.details_dialog = None
-        # self.directories_dialog = DirectoriesDialog(self)
-        self.main_window = TabWindow(self)
-        self.directories_dialog = self.main_window.createPage("DirectoriesDialog", app=self)
-        self.main_window.addTab(self.directories_dialog, "Directories")
+        if TAB_ENABLED:
+            self.main_window = TabWindow(self)
+            self.directories_dialog = self.main_window.createPage("DirectoriesDialog", app=self)
+            self.main_window.addTab(self.directories_dialog, "Directories")
+        else:
+            self.main_window = None
+            self.directories_dialog = DirectoriesDialog(self)
+
         self.progress_window = ProgressWindow(
             self.main_window, self.model.progress_window
         )
         self.problemDialog = ProblemDialog(
             parent=self.main_window, model=self.model.problem_dialog
         )
-        # self.ignoreListDialog = IgnoreListDialog(
-        #     parent=self.main_window, model=self.model.ignore_list_dialog
-        # )
-        self.ignoreListDialog = self.main_window.createPage(
-            "IgnoreListDialog",
-            parent=self.main_window,
-            model=self.model.ignore_list_dialog)
-        self.main_window.addTab(self.ignoreListDialog, "Ignore List", False)
-        self.ignoreListDialog.accepted.connect(self.main_window.onDialogAccepted)
+        if self.main_window:  # we use tab widget
+            self.ignoreListDialog = self.main_window.createPage(
+                "IgnoreListDialog",
+                parent=self.main_window,
+                model=self.model.ignore_list_dialog)
+            self.ignoreListDialog.accepted.connect(self.main_window.onDialogAccepted)
+        else:
+            self.ignoreListDialog = IgnoreListDialog(
+                parent=self.directories_dialog, model=self.model.ignore_list_dialog
+            )
 
         self.deletionOptions = DeletionOptions(
             parent=self.main_window, model=self.model.deletion_options
         )
         self.about_box = AboutBox(self.main_window, self)
 
-        self.main_window.show()
+        if self.main_window:
+            self.main_window.show()
+        else:
+            self.directories_dialog.show()
+
         self.model.load()
 
         self.SIGTERM.connect(self.handleSIGTERM)
@@ -202,11 +214,13 @@ class DupeGuru(QObject):
 
     def showResultsWindow(self):
         if self.resultWindow is not None:
-            # self.resultWindow.show()
-            self.main_window.addTab(self.resultWindow, "Results(", True)
-            self.main_window.tabwidget.setCurrentIndex(
-                self.main_window.tabwidget.indexOf(self.resultWindow))
-            # self.main_window.updateMenuBar()
+            if self.main_window:
+                self.main_window.addTab(self.resultWindow, "Results(", True)
+                self.main_window.tabwidget.setCurrentIndex(
+                    self.main_window.tabwidget.indexOf(self.resultWindow))
+                # self.main_window.updateMenuBar()
+            else:
+                self.resultWindow.show()
 
     def shutdown(self):
         self.willSavePrefs.emit()
@@ -227,7 +241,9 @@ class DupeGuru(QObject):
                 "scanning have accented letters, you'll probably get a crash. It is advised that "
                 "you set your system locale properly."
             )
-            QMessageBox.warning(self.main_window, "Wrong Locale", msg)
+            QMessageBox.warning(self.main_window if self.main_window
+                                else self.directories_dialog,
+                                "Wrong Locale", msg)
 
     def clearPictureCacheTriggered(self):
         title = tr("Clear Picture Cache")
@@ -238,14 +254,17 @@ class DupeGuru(QObject):
             QMessageBox.information(active, title, tr("Picture cache cleared."))
 
     def ignoreListTriggered(self):
-        # self.model.ignore_list_dialog.show()
-        index = self.main_window.tabwidget.indexOf(self.ignoreListDialog)
-        print(f"ignorelist index: {index}, visible? {self.main_window.tabwidget.isTabVisible(index)}")
-        if index < 0:
-            index = self.main_window.addTab(self.ignoreListDialog, "Ignore List(", True)
-        # if not self.main_window.tabwidget.isTabVisible(index):
-        self.main_window.tabwidget.setTabVisible(index, True)
-        self.main_window.tabwidget.setCurrentIndex(index)
+        if self.main_window:
+            index = self.main_window.tabwidget.indexOf(self.ignoreListDialog)
+            print(f"ignorelist index: {index}, visible? {self.main_window.tabwidget.isTabVisible(index)}")
+            if index < 0:
+                index = self.main_window.addTab(self.ignoreListDialog, "Ignore List", True)
+            # if not self.main_window.tabwidget.isTabVisible(index):
+            self.main_window.tabwidget.setTabVisible(index, True)
+            self.main_window.tabwidget.setCurrentIndex(index)
+            return
+        else:
+            self.model.ignore_list_dialog.show()
 
     def openDebugLogTriggered(self):
         debugLogPath = op.join(self.model.appdata, "debug.log")
@@ -253,7 +272,8 @@ class DupeGuru(QObject):
 
     def preferencesTriggered(self):
         preferences_dialog = self._get_preferences_dialog_class()(
-            self.main_window, self
+            self.main_window if self.main_window else self.directories_dialog,
+            self
         )
         preferences_dialog.load()
         result = preferences_dialog.exec()
@@ -264,8 +284,10 @@ class DupeGuru(QObject):
         preferences_dialog.setParent(None)
 
     def quitTriggered(self):
-        # self.directories_dialog.close()
-        self.main_window.close()
+        if self.main_window:
+            self.main_window.close()
+        else:
+            self.directories_dialog.close()
 
     def showAboutBoxTriggered(self):
         self.about_box.show()
@@ -305,13 +327,14 @@ class DupeGuru(QObject):
         if self.resultWindow is not None:
             self.resultWindow.close()
             self.resultWindow.setParent(None)
-        # self.resultWindow = ResultWindow(self.main_window, self)
-        self.resultWindow = self.main_window.createPage(
-            "ResultWindow", parent=self.main_window, app=self)
-        self.main_window.addTab(self.resultWindow, "Results")
-        self.main_window.tabwidget.setUpdatesEnabled(False)
+        if not self.main_window:  # We don't use a tab widget, regular QMainWindow
+            self.resultWindow = ResultWindow(self.directories_dialog, self)
+        else:
+            self.resultWindow = self.main_window.createPage(
+                "ResultWindow", parent=self.main_window, app=self)
+            self.main_window.addTab(self.resultWindow, "Results")
+            # self.main_window.tabwidget.setUpdatesEnabled(False)
         self.details_dialog = self._get_details_dialog_class()(self.resultWindow, self)
-        self.main_window.tabwidget.setUpdatesEnabled(True)
 
     def show_results_window(self):
         self.showResultsWindow()
