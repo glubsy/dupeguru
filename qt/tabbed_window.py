@@ -2,15 +2,14 @@
 # which should be included with this package. The terms are also available at
 # http://www.gnu.org/licenses/gpl-3.0.html
 
-from PyQt5.QtCore import Qt, QRect, pyqtSlot
+from PyQt5.QtCore import QRect, pyqtSlot
 from PyQt5.QtWidgets import (
     QWidget,
     QVBoxLayout,
     QMainWindow,
     QTabWidget,
-    QMenuBar,
     QMenu,
-    QDesktopWidget
+    # QDesktopWidget,
 )
 from hscommon.trans import trget
 from qtlib.util import moveToScreenCenter
@@ -25,6 +24,9 @@ class TabWindow(QMainWindow):
         super().__init__(None, **kwargs)
         self.app = app
         self.pages = {}
+        self.menuList = set()
+        self.last_index = -1
+        self.previous_widget_actions = set()
         self._setupUi()
         self.app.willSavePrefs.connect(self.appWillSavePrefs)
 
@@ -66,7 +68,11 @@ class TabWindow(QMainWindow):
             moveToScreenCenter(self)
 
     def _setupMenu(self):
-        self.menubar = QMenuBar()  # self.menuBar()
+        """Setup the menubar boiler plates which will be filled by the underlying
+        tab's widgets whenever they are instantiated."""
+        # self.menubar = QMenuBar()  # same as self.menuBar()
+        # self.setMenuBar(self.menubar)
+        self.menubar = self.menuBar()
         self.menubar.setGeometry(QRect(0, 0, 630, 22))
         self.menuFile = QMenu(self.menubar)
         self.menuFile.setTitle(tr("File"))
@@ -80,15 +86,43 @@ class TabWindow(QMainWindow):
         self.menuView.setTitle(tr("View"))
         self.menuHelp = QMenu(self.menubar)
         self.menuHelp.setTitle(tr("Help"))
-        self.menubar.setGeometry(QRect(0, 0, 630, 22))
-        self.setMenuBar(self.menubar)
+
+        self.menuList.add(self.menuFile)
+        self.menuList.add(self.menuMark)
+        self.menuList.add(self.menuActions)
+        self.menuList.add(self.menuColumns)
+        self.menuList.add(self.menuView)
+        self.menuList.add(self.menuHelp)
 
     @pyqtSlot(int)
     def updateMenuBar(self, page_index=None):
+        if page_index < 0:
+            return
         current_index = self.tabwidget.currentIndex()
-        print(f"currentChanged: index is now {current_index}, {self.tabwidget.widget(current_index)}")
-        if page_index is None:
-            page_index = self.tabwidget.currentIndex()
+        active_widget = self.tabwidget.widget(current_index)
+        print(f"index: {current_index}\nactive_widget: {active_widget}\nlast index: {self.last_index}")
+
+        if self.last_index < 0:
+            self.last_index = current_index
+            self.previous_widget_actions = active_widget.specific_actions
+            return
+
+        print(f"previous widget actions: {self.previous_widget_actions if self.previous_widget_actions else 'empty'}")
+
+        for menu in self.menuList:
+            for action in menu.actions():
+                if action is self.app.directories_dialog.actionShowResultsWindow:
+                    self.app.directories_dialog.actionShowResultsWindow.setEnabled(
+                        self.app.resultWindow is not None)
+                    continue
+                if action not in active_widget.specific_actions:
+                    if action in self.previous_widget_actions:
+                        action.setEnabled(False)
+                    continue
+                action.setEnabled(True)
+
+        self.previous_widget_actions = active_widget.specific_actions
+        self.last_index = self.tabwidget.currentIndex()
 
     def createPage(self, cls, **kwargs):
         app = kwargs.get("app", self.app)

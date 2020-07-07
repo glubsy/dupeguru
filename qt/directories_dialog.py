@@ -21,7 +21,6 @@ from PyQt5.QtWidgets import (
     QMenu,
     QLabel,
     QComboBox,
-    QDialog
 )
 from PyQt5.QtGui import QPixmap, QIcon
 
@@ -41,6 +40,7 @@ class DirectoriesDialog(QMainWindow):
     def __init__(self, app, **kwargs):
         super().__init__(None, **kwargs)
         self.app = app
+        self.specific_actions = set()
         self.lastAddedFolder = platform.INITIAL_FOLDER_IN_DIALOGS
         self.recentFolders = Recent(self.app, "recentFolders")
         self._setupUi()
@@ -95,25 +95,35 @@ class DirectoriesDialog(QMainWindow):
         ]
         createActions(ACTIONS, self)
 
+        # Keep track of actions which should only be accessible from this class
+        for action, _, _, _, _ in ACTIONS:
+            self.specific_actions.add(getattr(self, action))
+
     def _setupMenu(self):
-        # self.menubar = QMenuBar(self)
-        # self.menubar.setGeometry(QRect(0, 0, 42, 22))
-        # self.menuFile = QMenu(self.menubar)
-        # self.menuFile.setTitle(tr("File"))
-        self.menuFile = self.app.main_window.menuFile
-        # self.menuView = QMenu(self.menubar)
-        # self.menuView.setTitle(tr("View"))
-        self.menuView = self.app.main_window.menuView
-        # self.menuHelp = QMenu(self.menubar)
-        # self.menuHelp.setTitle(tr("Help"))
-        self.menuHelp = self.app.main_window.menuHelp
+        if not self.app.main_window:
+            # we are our own QMainWindow, we need our own menu bar
+            self.menubar = QMenuBar(self)
+            self.menubar.setGeometry(QRect(0, 0, 42, 22))
+            self.menuFile = QMenu(self.menubar)
+            self.menuFile.setTitle(tr("File"))
+            self.menuView = QMenu(self.menubar)
+            self.menuView.setTitle(tr("View"))
+            self.menuHelp = QMenu(self.menubar)
+            self.menuHelp.setTitle(tr("Help"))
+            self.setMenuBar(self.menubar)
+            menubar = self.menubar
+        else:
+            # we are part of a tab widget, we populate its window's menubar instead
+            self.menuFile = self.app.main_window.menuFile
+            self.menuView = self.app.main_window.menuView
+            self.menuHelp = self.app.main_window.menuHelp
+            menubar = self.app.main_window.menubar
 
         self.menuLoadRecent = QMenu(self.menuFile)
         self.menuLoadRecent.setTitle(tr("Load Recent Results"))
-        # self.setMenuBar(self.menubar)
-
         self.menuFile.addAction(self.actionLoadResults)
         self.menuFile.addAction(self.menuLoadRecent.menuAction())
+        self.specific_actions.add(self.menuLoadRecent.menuAction())
         self.menuFile.addSeparator()
         self.menuFile.addAction(self.app.actionClearPictureCache)
         self.menuFile.addSeparator()
@@ -125,9 +135,9 @@ class DirectoriesDialog(QMainWindow):
         self.menuHelp.addAction(self.app.actionOpenDebugLog)
         self.menuHelp.addAction(self.app.actionAbout)
 
-        self.app.main_window.menubar.addAction(self.menuFile.menuAction())
-        self.app.main_window.menubar.addAction(self.menuView.menuAction())
-        self.app.main_window.menubar.addAction(self.menuHelp.menuAction())
+        menubar.addAction(self.menuFile.menuAction())
+        menubar.addAction(self.menuView.menuAction())
+        menubar.addAction(self.menuHelp.menuAction())
 
         # Recent folders menu
         self.menuRecentFolders = QMenu()
