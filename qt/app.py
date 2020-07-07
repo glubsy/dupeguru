@@ -36,7 +36,7 @@ from .me.preferences_dialog import PreferencesDialog as PreferencesDialogMusic
 from .pe.preferences_dialog import PreferencesDialog as PreferencesDialogPicture
 from .pe.photo import File as PlatSpecificPhoto
 
-TAB_ENABLED = True
+TAB_ENABLED = False
 if TAB_ENABLED:
     from .tabbed_window import TabWindow
 
@@ -65,17 +65,19 @@ class DupeGuru(QObject):
         self.details_dialog = None
         if TAB_ENABLED:
             self.main_window = TabWindow(self)
+            parent_window = self.main_window
             self.directories_dialog = self.main_window.createPage("DirectoriesDialog", app=self)
             self.main_window.addTab(self.directories_dialog, "Directories")
         else:
             self.main_window = None
             self.directories_dialog = DirectoriesDialog(self)
+            parent_window = self.directories_dialog
 
         self.progress_window = ProgressWindow(
-            self.main_window, self.model.progress_window
+            parent_window, self.model.progress_window
         )
         self.problemDialog = ProblemDialog(
-            parent=self.main_window, model=self.model.problem_dialog
+            parent=parent_window, model=self.model.problem_dialog
         )
         if self.main_window:  # we use tab widget
             self.ignoreListDialog = self.main_window.createPage(
@@ -85,11 +87,12 @@ class DupeGuru(QObject):
             self.ignoreListDialog.accepted.connect(self.main_window.onDialogAccepted)
         else:
             self.ignoreListDialog = IgnoreListDialog(
-                parent=self.directories_dialog, model=self.model.ignore_list_dialog
+                parent=parent_window, model=self.model.ignore_list_dialog
             )
 
         self.deletionOptions = DeletionOptions(
-            parent=self.main_window, model=self.model.deletion_options
+            parent=parent_window,
+            model=self.model.deletion_options
         )
         self.about_box = AboutBox(self.main_window, self)
 
@@ -329,6 +332,7 @@ class DupeGuru(QObject):
             self.resultWindow.setParent(None)
         if not self.main_window:  # We don't use a tab widget, regular QMainWindow
             self.resultWindow = ResultWindow(self.directories_dialog, self)
+            self.directories_dialog._updateActionsState()
         else:
             self.resultWindow = self.main_window.createPage(
                 "ResultWindow", parent=self.main_window, app=self)
