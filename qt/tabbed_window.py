@@ -2,13 +2,17 @@
 # which should be included with this package. The terms are also available at
 # http://www.gnu.org/licenses/gpl-3.0.html
 
-from PyQt5.QtCore import QRect, pyqtSlot
+from PyQt5.QtCore import QRect, pyqtSlot, Qt
 from PyQt5.QtWidgets import (
     QWidget,
     QVBoxLayout,
+    QHBoxLayout,
     QMainWindow,
     QTabWidget,
     QMenu,
+    QTabBar,
+    QStackedWidget,
+    # QMenuBar
     # QDesktopWidget,
 )
 from hscommon.trans import trget
@@ -33,18 +37,23 @@ class TabWindow(QMainWindow):
     def _setupUi(self):
         self.setWindowTitle(self.app.NAME)
         self.resize(420, 338)
-        self.tabwidget = QTabWidget()
-        # self.tabwidget.setTabBarAutoHide(False)
-        self.tabwidget.currentChanged.connect(self.updateMenuBar)
-        self.tabwidget.tabCloseRequested.connect(self.onTabCloseRequested)
-        self.tabwidget.setTabsClosable(True)
-        self.centralWidget = QWidget(self)
-        self.verticalLayout = QVBoxLayout(self.centralWidget)
-        self.verticalLayout.addWidget(self.tabwidget)
+        self.tabWidget = QTabWidget(self)
+        # self.tabWidget.setTabPosition(QTabWidget.South)
+        self.tabWidget.setContentsMargins(0, 0, 0, 0)
+        # self.tabWidget.setTabBarAutoHide(True)
+        # This gets rid of the 1 pixel margin around the TabWidget
+        self.tabWidget.setDocumentMode(True)
+        self.tabWidget.currentChanged.connect(self.updateMenuBar)
+        self.tabWidget.tabCloseRequested.connect(self.onTabCloseRequested)
+        self.tabWidget.setTabsClosable(True)
+        self.verticalLayout = QVBoxLayout(self.tabWidget)  # self.centralWidget.setLayout(self.verticalLayout)
+        # self.verticalLayout.addWidget(self.tabWidget)
+        self.verticalLayout.setContentsMargins(0, 0, 0, 0)
         self._setupMenu()
-        # self.setLayout(self.verticalLayout)
-        self.setCentralWidget(self.centralWidget)
-        self.updateMenuBar(self.tabwidget.currentIndex())
+
+        self.setCentralWidget(self.tabWidget)  # only for QMainWindow
+
+        self.updateMenuBar(self.tabWidget.currentIndex())
 
         # This is not really working since the geometry of the first tab
         # (DirectoriesDialog) will restore its geometry and override ours:
@@ -72,10 +81,9 @@ class TabWindow(QMainWindow):
     def _setupMenu(self):
         """Setup the menubar boiler plates which will be filled by the underlying
         tab's widgets whenever they are instantiated."""
-        # self.menubar = QMenuBar()  # same as self.menuBar()
-        # self.setMenuBar(self.menubar)
-        self.menubar = self.menuBar()
-        self.menubar.setGeometry(QRect(0, 0, 630, 22))
+        self.menubar = self.menuBar()  # QMainWindow, similar to just QMenuBar() here
+        # self.setMenuBar(self.menubar) # already set if QMainWindow class
+        self.menubar.setGeometry(QRect(0, 0, 100, 22))
         self.menuFile = QMenu(self.menubar)
         self.menuFile.setTitle(tr("File"))
         self.menuMark = QMenu(self.menubar)
@@ -100,8 +108,8 @@ class TabWindow(QMainWindow):
     def updateMenuBar(self, page_index=None):
         if page_index < 0:
             return
-        current_index = self.tabwidget.currentIndex()
-        active_widget = self.tabwidget.widget(current_index)
+        current_index = self.tabWidget.currentIndex()
+        active_widget = self.tabWidget.widget(current_index)
         print(f"index: {current_index}\nactive_widget: {active_widget}\nlast index: {self.last_index}")
 
         if self.last_index < 0:
@@ -138,7 +146,7 @@ class TabWindow(QMainWindow):
                 action.setEnabled(True)
 
         self.previous_widget_actions = active_widget.specific_actions
-        self.last_index = self.tabwidget.currentIndex()
+        self.last_index = self.tabWidget.currentIndex()
 
     def createPage(self, cls, **kwargs):
         app = kwargs.get("app", self.app)
@@ -159,11 +167,25 @@ class TabWindow(QMainWindow):
 
     def addTab(self, page, title, visible=True):
         # Warning: this takes ownership of the page!
-        index = self.tabwidget.addTab(page, title)
-        # index = self.tabwidget.insertTab(-1, page, title)
+        index = self.tabWidget.addTab(page, title)
+        # index = self.tabWidget.insertTab(-1, page, title)
+        # if isinstance(page, DirectoriesDialog):
+        #     page.closeButton().hide()
         if not visible:
-            self.tabwidget.setTabVisible(index, False)
+            self.tabWidget.setTabVisible(index, False)
         return index
+
+    def indexOf(self, widget):
+        return self.tabWidget.indexOf(widget)
+
+    def setCurrentIndex(self, index):
+        return self.tabWidget.setCurrentIndex(index)
+
+    def setTabVisible(self, index, value):
+        return self.tabWidget.setTabVisible(index, value)
+
+    def isTabVisible(self, index):
+        return self.tabWidget.isTabVisible(index)
 
     # --- Events
     def appWillSavePrefs(self):
@@ -174,30 +196,153 @@ class TabWindow(QMainWindow):
         prefs.mainWindowRect = self.geometry()
 
     def closeEvent(self, close_event):
-        # Force closing of our tabbed widgets in reverse order so that the 
+        # Force closing of our tabbed widgets in reverse order so that the
         # directories dialog (which usually is at index 0) will be called last
-        for index in range(self.tabwidget.count() - 1, -1, -1):
-            self.tabwidget.widget(index).closeEvent(close_event)
+        for index in range(self.tabWidget.count() - 1, -1, -1):
+            self.tabWidget.widget(index).closeEvent(close_event)
         self.appWillSavePrefs()
 
     @pyqtSlot(int)
     def onTabCloseRequested(self, index):
-        print(f"close requested on {index} {self.tabwidget.widget(index)}")
-        # if self.tabwidget.tabBar().currentIndex(index) == self.tabwidget.currentWidget():
-        if isinstance(self.tabwidget.widget(index), DirectoriesDialog):
+        print(f"close requested on {index} {self.tabWidget.widget(index)}")
+        # if self.tabWidget.tabBar().currentIndex(index) == self.tabWidget.currentWidget():
+        if isinstance(self.tabWidget.widget(index), DirectoriesDialog):
             # if we close this one, the application quits,
             # force user to use the menu or shortcut
             return
-        self.tabwidget.widget(index).close()
-        self.tabwidget.setTabVisible(index, False)
-        # self.tabwidget.widget(index).hide()
-        self.tabwidget.removeTab(index)
-        # self.tabwidget.setCurrentIndex(index -1)
+        self.tabWidget.widget(index).close()
+        self.tabWidget.setTabVisible(index, False)
+        # self.tabWidget.widget(index).hide()
+        self.tabWidget.removeTab(index)
+        # self.tabWidget.setCurrentIndex(index -1)
 
     @pyqtSlot()
     def onDialogAccepted(self):
         """Remove tabbed dialog when Accepted/Done."""
         widget = self.sender()
-        index = self.tabwidget.indexOf(widget)
+        index = self.tabWidget.indexOf(widget)
         if index > -1:
-            self.tabwidget.removeTab(index)
+            self.tabWidget.removeTab(index)
+
+
+class TabBarWindow(TabWindow):
+    """Tab bar placed next to the menu bar to save real estate."""
+    def __init__(self, app, **kwargs):
+        super().__init__(app, **kwargs)
+
+    def _setupUi(self):
+        self.setWindowTitle(self.app.NAME)
+        self.resize(420, 338)
+        self.tabBar = QTabBar()
+        self.verticalLayout = QVBoxLayout()
+        self.verticalLayout.setContentsMargins(0, 0, 0, 0)
+        self._setupMenu()
+
+        self.centralWidget = QWidget(self)
+        self.setCentralWidget(self.centralWidget)
+        self.stackedWidget = QStackedWidget()
+        self.centralWidget.setLayout(self.verticalLayout)
+        self.horizontalLayout = QHBoxLayout(self)
+        self.horizontalLayout.addWidget(self.menubar, 0, Qt.AlignTop)
+        self.horizontalLayout.addWidget(self.tabBar, 0, Qt.AlignTop)
+        self.verticalLayout.addLayout(self.horizontalLayout)
+        self.verticalLayout.addWidget(self.stackedWidget)
+
+        self.stackedWidget.currentChanged.connect(self.updateMenuBar)
+        self.tabBar.currentChanged.connect(self.stackedWidget.setCurrentIndex)
+        self.tabBar.tabCloseRequested.connect(self.onTabCloseRequested)
+        self.tabBar.setTabsClosable(True)
+
+    @pyqtSlot(int)
+    def updateMenuBar(self, page_index=None):
+        if page_index < 0:
+            return
+        current_index = self.stackedWidget.currentIndex()
+        active_widget = self.stackedWidget.widget(current_index)
+        print(f"index: {current_index}\nactive_widget: {active_widget}\nlast index: {self.last_index}")
+
+        if self.last_index < 0:
+            self.last_index = current_index
+            self.previous_widget_actions = active_widget.specific_actions
+            return
+
+        print(f"previous widget actions: {self.previous_widget_actions if self.previous_widget_actions else 'empty'}")
+
+        isResultWindow = isinstance(active_widget, ResultWindow)
+
+        for menu in self.menuList:
+            if menu is self.menuColumns or menu is self.menuActions or menu is self.menuMark:
+                if not isResultWindow:
+                    menu.setEnabled(False)
+                    continue
+                else:
+                    menu.setEnabled(True)
+
+            for action in menu.actions():
+                if action is self.app.directories_dialog.actionShowResultsWindow:
+                    if isResultWindow:
+                        # Action points to ourselves, always disable it
+                        self.app.directories_dialog.actionShowResultsWindow\
+                            .setEnabled(False)
+                        continue
+                    self.app.directories_dialog.actionShowResultsWindow\
+                        .setEnabled(self.app.resultWindow is not None)
+                    continue
+                if action not in active_widget.specific_actions:
+                    if action in self.previous_widget_actions:
+                        action.setEnabled(False)
+                    continue
+                action.setEnabled(True)
+
+        self.previous_widget_actions = active_widget.specific_actions
+        self.last_index = self.stackedWidget.currentIndex()
+
+    def addTab(self, page, title, visible=True):
+        index = self.tabBar.addTab(title)
+        self.stackedWidget.addWidget(page)
+        # index = self.tabWidget.insertTab(-1, page, title)
+        if not visible:
+            self.tabBar.setTabVisible(index, False)
+        return index
+
+    def indexOf(self, widget):
+        return self.stackedWidget.indexOf(widget)
+
+    def setCurrentIndex(self, index):
+        self.tabBar.setCurrentIndex(index)
+        self.stackedWidget.setCurrentIndex(index)
+
+    def setTabVisible(self, index, value):
+        return self.tabBar.setTabVisible(index, value)
+
+    def isTabVisible(self, index):
+        return self.tabBar.isTabVisible(index)
+
+    @pyqtSlot(int)
+    def onTabCloseRequested(self, index):
+        print(f"close requested on {index} {self.stackedWidget.widget(index)}")
+        # if self.tabWidget.tabBar().currentIndex(index) == self.tabWidget.currentWidget():
+        if isinstance(self.stackedWidget.widget(index), DirectoriesDialog):
+            # if we close this one, the application quits,
+            # force user to use the menu or shortcut
+            return
+        self.stackedWidget.widget(index).close()
+        self.tabBar.setTabVisible(index, False)
+        # self.tabWidget.widget(index).hide()
+        self.tabBar.removeTab(index)
+        # self.tabWidget.setCurrentIndex(index -1)
+
+    @pyqtSlot()
+    def onDialogAccepted(self):
+        """Remove tabbed dialog when Accepted/Done."""
+        widget = self.sender()
+        index = self.stackedWidget.indexOf(widget)
+        if index > -1:
+            self.tabBar.removeTab(index)
+
+    def closeEvent(self, close_event):
+        # Force closing of our tabbed widgets in reverse order so that the
+        # directories dialog (which usually is at index 0) will be called last
+        for index in range(self.stackedWidget.count() - 1, -1, -1):
+            self.stackedWidget.widget(index).closeEvent(close_event)
+        self.appWillSavePrefs()

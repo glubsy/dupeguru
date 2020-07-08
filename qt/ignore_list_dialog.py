@@ -40,6 +40,7 @@ class IgnoreListDialog(QDialog):
         self.setWindowTitle(tr("Ignore List"))
         self.resize(540, 330)
         self.verticalLayout = QVBoxLayout(self)
+        self.verticalLayout.setContentsMargins(0, 0, 0, 0)
         self.tableView = QTableView()
         self.tableView.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.tableView.setSelectionMode(QAbstractItemView.ExtendedSelection)

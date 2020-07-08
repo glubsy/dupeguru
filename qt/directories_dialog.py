@@ -155,6 +155,8 @@ class DirectoriesDialog(QMainWindow):
         self.resize(420, 338)
         self.centralwidget = QWidget(self)
         self.verticalLayout = QVBoxLayout(self.centralwidget)
+        self.verticalLayout.setContentsMargins(4, 0, 4, 0)
+        self.verticalLayout.setSpacing(0)
         hl = QHBoxLayout()
         label = QLabel(tr("Application Mode:"), self)
         label.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
