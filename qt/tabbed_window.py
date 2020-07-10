@@ -2,7 +2,7 @@
 # which should be included with this package. The terms are also available at
 # http://www.gnu.org/licenses/gpl-3.0.html
 
-from PyQt5.QtCore import QRect, pyqtSlot, Qt, QSize
+from PyQt5.QtCore import QRect, pyqtSlot, Qt
 from PyQt5.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -12,8 +12,7 @@ from PyQt5.QtWidgets import (
     QMenu,
     QTabBar,
     QStackedWidget,
-    QAbstractButton,
-    # QMenuBar
+    QMenuBar
     # QDesktopWidget,
 )
 from hscommon.trans import trget
@@ -29,59 +28,55 @@ class TabWindow(QMainWindow):
         super().__init__(None, **kwargs)
         self.app = app
         self.pages = {}
+        self.menubar = None
         self.menuList = set()
         self.last_index = -1
         self.previous_widget_actions = set()
         self._setupUi()
         self.app.willSavePrefs.connect(self.appWillSavePrefs)
 
-    def _setupUi(self):
+    def _setupUi(self, separate_tabbar=True):
         self.setWindowTitle(self.app.NAME)
         self.resize(640, 480)
-        self.tabWidget = QTabWidget(self)
+        self.tabWidget = QTabWidget()  # (self)
         # self.tabWidget.setTabPosition(QTabWidget.South)
-
-        # TODO: reimplement with our own tab bar here
-        # we'll need to hcange the layout as well though
-        # self.tabBar = QTabBar()
-        # self.tabWidget.setTabBar(self.tabBar)
-
         self.tabWidget.setContentsMargins(0, 0, 0, 0)
         # self.tabWidget.setTabBarAutoHide(True)
         # This gets rid of the 1 pixel margin around the TabWidget
         self.tabWidget.setDocumentMode(True)
-        self.tabWidget.currentChanged.connect(self.updateMenuBar)
-        self.tabWidget.tabCloseRequested.connect(self.onTabCloseRequested)
-        self.tabWidget.setTabsClosable(True)
-        self.verticalLayout = QVBoxLayout(self.tabWidget)  # self.centralWidget.setLayout(self.verticalLayout)
-        # self.verticalLayout.addWidget(self.tabWidget)
-        self.verticalLayout.setContentsMargins(0, 0, 0, 0)
+
+        # self.menubar = QMenuBar(self)
         self._setupMenu()
 
-        self.setCentralWidget(self.tabWidget)  # only for QMainWindow
+        if not separate_tabbar:
+            # self.setMenuBar(self.menubar)  # already set if QMainWindow class
+            self.verticalLayout = QVBoxLayout(self.tabWidget)  # self.centralWidget.setLayout(self.verticalLayout)
+            # self.verticalLayout.addWidget(self.tabWidget)
+            self.verticalLayout.setContentsMargins(0, 0, 0, 0)
+            self.tabWidget.setTabsClosable(True)
+            self.setCentralWidget(self.tabWidget)  # only for QMainWindow
+        else:
+            self.centralWidget = QWidget(self)
+            self.setCentralWidget(self.centralWidget)
+            self.verticalLayout = QVBoxLayout()
+            self.centralWidget.setLayout(self.verticalLayout)
+            # By default we separate the tab bar and place it next to the top menu
+            self.tabBar = QTabBar()  #(self.tabWidget)
+            self.tabWidget.setTabBar(self.tabBar)
+            # self.setMenuBar(self.menubar)  # already set if QMainWindow class
+            self.horizontalLayout = QHBoxLayout()
+            self.horizontalLayout.addWidget(self.menubar, 0, Qt.AlignTop)
+            self.horizontalLayout.addWidget(self.tabBar, 0, Qt.AlignTop)
+            self.verticalLayout.addLayout(self.horizontalLayout)
+            self.verticalLayout.addWidget(self.tabWidget)
+            self.tabBar.setTabsClosable(True)
 
+        self.tabWidget.currentChanged.connect(self.updateMenuBar)
+        self.tabWidget.tabCloseRequested.connect(self.onTabCloseRequested)
         self.updateMenuBar(self.tabWidget.currentIndex())
         self.restoreGeometry()
 
     def restoreGeometry(self):
-        # This is not really working since the geometry of the first tab
-        # (DirectoriesDialog) will restore its geometry and override ours:
-        # if self.app.prefs.mainWindowIsMaximized:
-        #     self.setWindowState(self.windowState() | Qt.WindowMaximized)
-        # else:
-        #     if self.app.prefs.mainWindowRect is not None:
-        #         self.setGeometry(self.app.prefs.mainWindowRect)
-        #         # if not on any screen move to center of default screen
-        #         # moves to center of closest screen if partially off screen
-        #         frame = self.frameGeometry()
-        #         if QDesktopWidget().screenNumber(self) == -1:
-        #             moveToScreenCenter(self)
-        #         elif QDesktopWidget().availableGeometry(self).contains(frame) is False:
-        #             frame.moveCenter(QDesktopWidget().availableGeometry(self).center())
-        #             self.move(frame.topLeft())
-        #     else:
-        #         moveToScreenCenter(self)
-
         if self.app.prefs.mainWindowRect is not None:
             self.setGeometry(self.app.prefs.mainWindowRect)
         else:
@@ -90,8 +85,8 @@ class TabWindow(QMainWindow):
     def _setupMenu(self):
         """Setup the menubar boiler plates which will be filled by the underlying
         tab's widgets whenever they are instantiated."""
-        self.menubar = self.menuBar()  # QMainWindow, similar to just QMenuBar() here
-        # self.setMenuBar(self.menubar) # already set if QMainWindow class
+        if not self.menubar:
+            self.menubar = self.menuBar()  # QMainWindow, similar to just QMenuBar() here
         self.menubar.setGeometry(QRect(0, 0, 100, 22))
         self.menuFile = QMenu(self.menubar)
         self.menuFile.setTitle(tr("File"))
@@ -119,17 +114,11 @@ class TabWindow(QMainWindow):
             return
         current_index = self.getCurrentIndex()
         active_widget = self.getCurrentWidget(current_index)
-        print(f"index: {current_index}\nactive_widget: {active_widget}\nlast index: {self.last_index}")
-
         if self.last_index < 0:
             self.last_index = current_index
             self.previous_widget_actions = active_widget.specific_actions
             return
-
-        # print(f"previous widget actions: {self.previous_widget_actions if self.previous_widget_actions else 'empty'}")
-
         isResultWindow = isinstance(active_widget, ResultWindow)
-
         for menu in self.menuList:
             if menu is self.menuColumns or menu is self.menuActions or menu is self.menuMark:
                 if not isResultWindow:
@@ -137,7 +126,6 @@ class TabWindow(QMainWindow):
                     continue
                 else:
                     menu.setEnabled(True)
-
             for action in menu.actions():
                 if action is self.app.directories_dialog.actionShowResultsWindow:
                     if isResultWindow:
@@ -160,7 +148,6 @@ class TabWindow(QMainWindow):
     def createPage(self, cls, **kwargs):
         app = kwargs.get("app", self.app)
         page = None
-
         if cls == "DirectoriesDialog":
             page = DirectoriesDialog(app)
         elif cls == "ResultWindow":
@@ -170,20 +157,17 @@ class TabWindow(QMainWindow):
             parent = kwargs.get("parent", self)
             model = kwargs.get("model")
             page = IgnoreListDialog(parent, model)
-
         self.pages[cls] = page
         return page
 
-    def addTab(self, page, title, invisible=False):
+    def addTab(self, page, title, switch=False):
         # Warning: this takes ownership of the page!
         index = self.tabWidget.addTab(page, title)
         # index = self.tabWidget.insertTab(-1, page, title)
         if isinstance(page, DirectoriesDialog):
             self.tabWidget.tabBar().setTabButton(
-                index, QTabBar.RightSide, FakeCloseButton())
-        if invisible:
-            self.setTabVisible(index, False)
-        else:
+                index, QTabBar.RightSide, None)
+        if switch:
             self.setCurrentIndex(index)
         return index
 
@@ -228,7 +212,6 @@ class TabWindow(QMainWindow):
 
     @pyqtSlot(int)
     def onTabCloseRequested(self, index):
-        print(f"close requested on {index} {self.getCurrentWidget(index)}")
         # if self.tabWidget.tabBar().currentIndex(index) == self.tabWidget.currentWidget():
         current_widget = self.getCurrentWidget(index)
         if isinstance(current_widget, DirectoriesDialog):
@@ -251,7 +234,8 @@ class TabWindow(QMainWindow):
 
 
 class TabBarWindow(TabWindow):
-    """Tab bar placed next to the menu bar to save real estate."""
+    """Implementation which uses a separate QTabBar and QStackedWidget.
+    The Tab bar is placed next to the menu bar to save real estate."""
     def __init__(self, app, **kwargs):
         super().__init__(app, **kwargs)
 
@@ -282,16 +266,13 @@ class TabBarWindow(TabWindow):
         self.restoreGeometry()
 
     def addTab(self, page, title, switch=True):
-        """switch -> setCurrentIndex immediately"""
         stack_index = self.stackedWidget.addWidget(page)
         tab_index = self.tabBar.addTab(title)
-
         # index = self.tabWidget.insertTab(-1, page, title)
         if isinstance(page, DirectoriesDialog):
             self.tabBar.setTabButton(
-                tab_index, QTabBar.RightSide, FakeCloseButton())
-
-        if switch:  # by default, switch to the added tab
+                tab_index, QTabBar.RightSide, None)
+        if switch:  # switch to the added tab immediately upon creation
             self.setCurrentIndex(tab_index)
         return stack_index
 
@@ -341,14 +322,14 @@ class TabBarWindow(TabWindow):
         return self.stackedWidget.count()
 
 
-class FakeCloseButton(QAbstractButton):
-    """Cloes button that doesn't display on the tab bar."""
-    def __init__(self):
-        super().__init__()
-        self.setFocusPolicy(Qt.NoFocus)
-        self.setCursor(Qt.ArrowCursor)
-        self.setToolTip(tr("Close Tab"))
-        self.resize(self.sizeHint())
+# class FakeCloseButton(QAbstractButton):
+#     """Cloes button that doesn't display on the tab bar."""
+#     def __init__(self):
+#         super().__init__()
+#         self.setFocusPolicy(Qt.NoFocus)
+#         self.setCursor(Qt.ArrowCursor)
+#         self.setToolTip(tr("Close Tab"))
+#         self.resize(self.sizeHint())
 
-    def paintEvent(self, event):
-        pass
+#     def paintEvent(self, event):
+#         pass

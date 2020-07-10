@@ -64,7 +64,7 @@ class DupeGuru(QObject):
         self.resultWindow = None
         self.details_dialog = None
         if TAB_ENABLED:
-            self.main_window = TabBarWindow(self)
+            self.main_window = TabWindow(self)
             parent_window = self.main_window
             self.directories_dialog = self.main_window.createPage("DirectoriesDialog", app=self)
             self.main_window.addTab(
