@@ -216,7 +216,7 @@ class ResultWindow(QMainWindow):
     def _setupMenu(self):
         if not self.app.main_window:
             # we are our own QMainWindow, we need our own menu bar
-            self.menubar = QMenuBar()
+            self.menubar = QMenuBar()  # or simply self.menuBar()
             self.menubar.setGeometry(QRect(0, 0, 630, 22))
             self.menuFile = QMenu(self.menubar)
             self.menuFile.setTitle(tr("File"))

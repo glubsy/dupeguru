@@ -38,7 +38,7 @@ from .pe.photo import File as PlatSpecificPhoto
 
 TAB_ENABLED = True
 if TAB_ENABLED:
-    from .tabbed_window import TabWindow, TabBarWindow
+    from .tabbed_window import TabBarWindow
 
 tr = trget("ui")
 
@@ -64,7 +64,7 @@ class DupeGuru(QObject):
         self.resultWindow = None
         self.details_dialog = None
         if TAB_ENABLED:
-            self.main_window = TabWindow(self)
+            self.main_window = TabBarWindow(self)
             parent_window = self.main_window
             self.directories_dialog = self.main_window.createPage("DirectoriesDialog", app=self)
             self.main_window.addTab(
@@ -215,6 +215,8 @@ class DupeGuru(QObject):
     def showResultsWindow(self):
         if self.resultWindow is not None:
             if self.main_window:
+                # index = self.main_window.indexOfWidget(self.resultWindow)
+                # if index > 0:
                 self.main_window.addTab(
                     self.resultWindow, "Results(", switch=True)
                 # self.main_window.setCurrentIndex(
@@ -257,9 +259,8 @@ class DupeGuru(QObject):
     def ignoreListTriggered(self):
         if self.main_window:
             index = self.main_window.indexOfWidget(self.ignoreListDialog)
-            print(f"ignorelist index: {index}, visible? {self.main_window.isTabVisible(index)}")
             if index < 0:
-                # FIXME we have not instantiated it yet?
+                # we have not instantiated it yet
                 index = self.main_window.addTab(
                     self.ignoreListDialog, "Ignore List", switch=True)
             # if not self.main_window.tabWidget.isTabVisible(index):
@@ -330,6 +331,7 @@ class DupeGuru(QObject):
         if self.resultWindow is not None:
             self.resultWindow.close()
             self.resultWindow.setParent(None)
+
         if not self.main_window:  # We don't use a tab widget, regular QMainWindow
             self.resultWindow = ResultWindow(self.directories_dialog, self)
             self.directories_dialog._updateActionsState()
