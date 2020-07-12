@@ -60,7 +60,8 @@ class TabWindow(QMainWindow):
 
         self._setupActions()
         self._setupMenu()
-        self.verticalLayout = QVBoxLayout(self.tabWidget)  # self.centralWidget.setLayout(self.verticalLayout)
+        # This should be the same as self.centralWidget.setLayout(self.verticalLayout)
+        self.verticalLayout = QVBoxLayout(self.tabWidget)
         # self.verticalLayout.addWidget(self.tabWidget)
         self.verticalLayout.setContentsMargins(0, 0, 0, 0)
         self.tabWidget.setTabsClosable(True)
@@ -219,8 +220,9 @@ class TabWindow(QMainWindow):
     def onTabCloseRequested(self, index):
         current_widget = self.getWidgetAtIndex(index)
         if isinstance(current_widget, DirectoriesDialog):
-            # if we close this one, the application quits,
-            # force user to use the menu or shortcut
+            # if we close this one, the application quits. Force user to use the
+            # menu or shortcut. But this is useless if we don't have a button
+            # set up to make a close request anyway. This check could be removed.
             return
         current_widget.close()
         self.setTabVisible(index, False)
@@ -319,6 +321,7 @@ class TabBarWindow(TabWindow):
 
     @pyqtSlot(int)
     def removeTab(self, index):
+        # No need to remove the widget here:
         # self.stackedWidget.removeWidget(self.stackedWidget.widget(index))
         return self.tabBar.removeTab(index)
 
@@ -347,10 +350,6 @@ class TabBarWindow(TabWindow):
     @pyqtSlot(int)
     def onTabCloseRequested(self, index):
         current_widget = self.getWidgetAtIndex(index)
-        if isinstance(current_widget, DirectoriesDialog):
-            # if we close this one, the application quits,
-            # force user to use the menu or shortcut
-            return
         current_widget.close()
         self.stackedWidget.removeWidget(current_widget)
         # In this case the signal will take care of the tab itself after removing the widget

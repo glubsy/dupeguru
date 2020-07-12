@@ -35,10 +35,7 @@ from .se.preferences_dialog import PreferencesDialog as PreferencesDialogStandar
 from .me.preferences_dialog import PreferencesDialog as PreferencesDialogMusic
 from .pe.preferences_dialog import PreferencesDialog as PreferencesDialogPicture
 from .pe.photo import File as PlatSpecificPhoto
-
-TAB_ENABLED = True
-if TAB_ENABLED:
-    from .tabbed_window import TabBarWindow
+from .tabbed_window import TabBarWindow
 
 tr = trget("ui")
 
@@ -51,6 +48,9 @@ class DupeGuru(QObject):
         super().__init__(**kwargs)
         self.prefs = Preferences()
         self.prefs.load()
+        # Enable tabs instead of separate floating windows for each dialog
+        # Could be passed as an argument to this class if we wanted
+        self.use_tabs = True
         self.model = DupeGuruModel(view=self)
         self._setup()
 
@@ -63,7 +63,7 @@ class DupeGuru(QObject):
         self.recentResults.mustOpenItem.connect(self.model.load_from)
         self.resultWindow = None
         self.details_dialog = None
-        if TAB_ENABLED:
+        if self.use_tabs:
             self.main_window = TabBarWindow(self)
             parent_window = self.main_window
             self.directories_dialog = self.main_window.createPage("DirectoriesDialog", app=self)
@@ -215,13 +215,8 @@ class DupeGuru(QObject):
     def showResultsWindow(self):
         if self.resultWindow is not None:
             if self.main_window:
-                # index = self.main_window.indexOfWidget(self.resultWindow)
-                # if index > 0:
                 self.main_window.addTab(
-                    self.resultWindow, "Results(", switch=True)
-                # self.main_window.setCurrentIndex(
-                #     self.main_window.indexOfWidget(self.resultWindow))
-                # self.main_window.updateMenuBar()
+                    self.resultWindow, "Results", switch=True)
             else:
                 self.resultWindow.show()
 
@@ -258,9 +253,10 @@ class DupeGuru(QObject):
 
     def ignoreListTriggered(self):
         if self.main_window:
+            # Fetch the index in the TabWidget or the StackWidget (depends on class):
             index = self.main_window.indexOfWidget(self.ignoreListDialog)
             if index < 0:
-                # we have not instantiated it yet
+                # we have not instantiated and populated it in their internal list yet
                 index = self.main_window.addTab(
                     self.ignoreListDialog, "Ignore List", switch=True)
             # if not self.main_window.tabWidget.isTabVisible(index):
@@ -331,16 +327,12 @@ class DupeGuru(QObject):
         if self.resultWindow is not None:
             self.resultWindow.close()
             self.resultWindow.setParent(None)
-
-        if not self.main_window:  # We don't use a tab widget, regular QMainWindow
-            self.resultWindow = ResultWindow(self.directories_dialog, self)
-            self.directories_dialog._updateActionsState()
-        else:
+        if self.main_window:
             self.resultWindow = self.main_window.createPage(
                 "ResultWindow", parent=self.main_window, app=self)
-            # self.main_window.addTab(self.resultWindow, "Results",
-            #                         switch=False)
-            # self.main_window.tabWidget.setUpdatesEnabled(False)
+        else:  # We don't use a tab widget, regular floating QMainWindow
+            self.resultWindow = ResultWindow(self.directories_dialog, self)
+            self.directories_dialog._updateActionsState()
         self.details_dialog = self._get_details_dialog_class()(self.resultWindow, self)
 
     def show_results_window(self):

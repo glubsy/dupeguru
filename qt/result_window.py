@@ -216,7 +216,7 @@ class ResultWindow(QMainWindow):
     def _setupMenu(self):
         if not self.app.main_window:
             # we are our own QMainWindow, we need our own menu bar
-            self.menubar = QMenuBar()  # or simply self.menuBar()
+            self.menubar = QMenuBar()  # self.menuBar() works as well here
             self.menubar.setGeometry(QRect(0, 0, 630, 22))
             self.menuFile = QMenu(self.menubar)
             self.menuFile.setTitle(tr("File"))
@@ -284,8 +284,8 @@ class ResultWindow(QMainWindow):
 
         # Columns menu
         menu = self.menuColumns
-        # Avoid adding duplicateactions in tab widget menu in case we recreated
-        # the Result window instance.
+        # Avoid adding duplicate actions in tab widget menu in case we recreated
+        # the Result Window instance.
         if menu.actions():
             menu.clear()
         self._column_actions = []
